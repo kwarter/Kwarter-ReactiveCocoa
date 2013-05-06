@@ -24,15 +24,15 @@
 #pragma mark Properties
 
 - (BOOL)isFinished {
-	return self.eventType == RACEventTypeCompleted || self.eventType == RACEventTypeError;
+	return self.racEventType == RACEventTypeCompleted || self.racEventType == RACEventTypeError;
 }
 
 - (NSError *)error {
-	return (self.eventType == RACEventTypeError ? self.object : nil);
+	return (self.racEventType == RACEventTypeError ? self.object : nil);
 }
 
 - (id)value {
-	return (self.eventType == RACEventTypeNext ? self.object : nil);
+	return (self.racEventType == RACEventTypeNext ? self.object : nil);
 }
 
 #pragma mark Lifecycle
@@ -77,7 +77,7 @@
 - (NSString *)description {
 	NSString *eventDescription = nil;
 
-	switch (self.eventType) {
+	switch (self.racEventType) {
 		case RACEventTypeCompleted:
 			eventDescription = @"completed";
 			break;
@@ -91,20 +91,20 @@
 			break;
 
 		default:
-			NSAssert(NO, @"Unrecognized event type: %i", (int)self.eventType);
+			NSAssert(NO, @"Unrecognized event type: %i", (int)self.racEventType);
 	}
 
 	return [NSString stringWithFormat:@"<%@: %p>{ %@ }", self.class, self, eventDescription];
 }
 
 - (NSUInteger)hash {
-	return self.eventType ^ [self.object hash];
+	return self.racEventType ^ [self.object hash];
 }
 
 - (BOOL)isEqual:(id)event {
 	if (event == self) return YES;
 	if (![event isKindOfClass:RACEvent.class]) return NO;
-	if (self.eventType != [event eventType]) return NO;
+	if (self.racEventType != [event racEventType]) return NO;
 
 	// Catches the nil case too.
 	return self.object == [event object] || [self.object isEqual:[event object]];

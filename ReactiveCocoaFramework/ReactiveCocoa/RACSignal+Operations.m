@@ -641,7 +641,7 @@ static RACDisposable *concatPopNextSignal(NSMutableArray *signals, BOOL *outerDo
 	NSParameterAssert(block != nil);
 
 	return [[[self materialize] flattenMap:^(RACEvent *event) {
-		switch (event.eventType) {
+		switch (event.racEventType) {
 			case RACEventTypeCompleted:
 				return block();
 
@@ -652,7 +652,7 @@ static RACDisposable *concatPopNextSignal(NSMutableArray *signals, BOOL *outerDo
 				return [RACSignal empty];
 
 			default:
-				NSAssert(NO, @"Unrecognized event type: %i", (int)event.eventType);
+				NSAssert(NO, @"Unrecognized event type: %i", (int)event.racEventType);
 		}
 	}] setNameWithFormat:@"[%@] -sequenceNext:", self.name];
 }
@@ -1223,12 +1223,12 @@ static RACDisposable *concatPopNextSignal(NSMutableArray *signals, BOOL *outerDo
 	
 	return [[[self materialize] bind:^{
 		return ^(RACEvent *event, BOOL *stop) {
-			if (event.eventType == RACEventTypeCompleted) {
+			if (event.racEventType == RACEventTypeCompleted) {
 				*stop = YES;
 				return [RACSignal return:@YES];
 			}
 			
-			if (event.eventType == RACEventTypeError || !predicateBlock(event.value)) {
+			if (event.racEventType == RACEventTypeError || !predicateBlock(event.value)) {
 				*stop = YES;
 				return [RACSignal return:@NO];
 			}
@@ -1337,7 +1337,7 @@ static RACDisposable *concatPopNextSignal(NSMutableArray *signals, BOOL *outerDo
 - (RACSignal *)dematerialize {
 	return [[self bind:^{
 		return ^(RACEvent *event, BOOL *stop) {
-			switch (event.eventType) {
+			switch (event.racEventType) {
 				case RACEventTypeCompleted:
 					*stop = YES;
 					return [RACSignal empty];

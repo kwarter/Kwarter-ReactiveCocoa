@@ -34,7 +34,7 @@ typedef enum : NSUInteger {
 + (instancetype)eventWithValue:(id)value;
 
 // The type of event represented by the receiver.
-@property (nonatomic, assign, readonly) RACEventType eventType;
+@property (nonatomic, assign, readonly) RACEventType racEventType;
 
 // Returns whether the receiver is of type RACEventTypeCompleted or
 // RACEventTypeError.
