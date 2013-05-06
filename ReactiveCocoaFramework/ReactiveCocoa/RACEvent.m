@@ -60,7 +60,7 @@
 	self = [super init];
 	if (self == nil) return nil;
 
-	_eventType = type;
+	_racEventType = type;
 	_object = object;
 
 	return self;
