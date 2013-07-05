@@ -7,6 +7,7 @@
 //
 
 #import "RACEagerSequence.h"
+#import "NSObject+RACDescription.h"
 #import "RACArraySequence.h"
 
 @implementation RACEagerSequence
@@ -14,11 +15,11 @@
 #pragma mark RACStream
 
 + (instancetype)return:(id)value {
-	return [[self sequenceWithArray:@[ value ] offset:0] setNameWithFormat:@"+return: %@", value];
+	return [[self sequenceWithArray:@[ value ] offset:0] setNameWithFormat:@"+return: %@", [value rac_description]];
 }
 
 - (instancetype)bind:(RACStreamBindBlock (^)(void))block {
-	NSParameterAssert(block != nil);
+	NSCParameterAssert(block != nil);
 	RACStreamBindBlock bindBlock = block();
 	NSArray *currentArray = self.array;
 	NSMutableArray *resultArray = [NSMutableArray arrayWithCapacity:currentArray.count];
@@ -39,8 +40,8 @@
 }
 
 - (instancetype)concat:(RACSequence *)sequence {
-	NSParameterAssert(sequence != nil);
-	NSParameterAssert([sequence isKindOfClass:RACSequence.class]);
+	NSCParameterAssert(sequence != nil);
+	NSCParameterAssert([sequence isKindOfClass:RACSequence.class]);
 
 	NSArray *array = [self.array arrayByAddingObjectsFromArray:sequence.array];
 	return [[self.class sequenceWithArray:array offset:0] setNameWithFormat:@"[%@] -concat: %@", self.name, sequence];

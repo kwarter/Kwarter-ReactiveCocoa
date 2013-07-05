@@ -6,13 +6,15 @@
 //  Copyright (c) 2012 GitHub, Inc. All rights reserved.
 //
 
-#import "NSObject+RACLifting.h"
 #import "RACTestObject.h"
-#import "RACSubject.h"
-#import "RACUnit.h"
+
+#import "NSObject+RACLifting.h"
+#import "NSObject+RACDeallocating.h"
 #import "NSObject+RACPropertySubscribing.h"
 #import "RACDisposable.h"
+#import "RACSubject.h"
 #import "RACTuple.h"
+#import "RACUnit.h"
 
 // <RACLiftingTestRig> specifies the basic behavior necessary for testing
 // different techniques of message lifting (namely -rac_lift and
@@ -245,9 +247,20 @@ describe(@"-rac_liftSelector:withObjects:", ^{
 
 		expect(object.charPointerValue).to.equal(NULL);
 
-		const char *string = "blah blah blah";
-		[subject sendNext:@(string)];
-		expect(strcmp(object.charPointerValue, string) == 0).to.beTruthy();
+		NSString *string = @"blah blah blah";
+		[subject sendNext:string];
+		expect(@(object.charPointerValue)).to.equal(string);
+	});
+
+	it(@"should work for const char pointer", ^{
+		RACSubject *subject = [RACSubject subject];
+		[object rac_liftSelector:@selector(setConstCharPointerValue:) withObjects:subject];
+
+		expect(object.constCharPointerValue).to.equal(NULL);
+
+		NSString *string = @"blah blah blah";
+		[subject sendNext:string];
+		expect(@(object.constCharPointerValue)).to.equal(string);
 	});
 
 	it(@"should work for CGRect", ^{
@@ -257,7 +270,7 @@ describe(@"-rac_liftSelector:withObjects:", ^{
 		expect(object.rectValue).to.equal(CGRectZero);
 
 		CGRect value = CGRectMake(10, 20, 30, 40);
-		[subject sendNext:[NSValue valueWithRect:value]];
+		[subject sendNext:[NSValue valueWithBytes:&value objCType:@encode(CGRect)]];
 		expect(object.rectValue).to.equal(value);
 	});
 
@@ -268,7 +281,7 @@ describe(@"-rac_liftSelector:withObjects:", ^{
 		expect(object.sizeValue).to.equal(CGSizeZero);
 
 		CGSize value = CGSizeMake(10, 20);
-		[subject sendNext:[NSValue valueWithSize:value]];
+		[subject sendNext:[NSValue valueWithBytes:&value objCType:@encode(CGSize)]];
 		expect(object.sizeValue).to.equal(value);
 	});
 
@@ -279,8 +292,19 @@ describe(@"-rac_liftSelector:withObjects:", ^{
 		expect(object.pointValue).to.equal(CGPointZero);
 
 		CGPoint value = CGPointMake(10, 20);
-		[subject sendNext:[NSValue valueWithPoint:value]];
+		[subject sendNext:[NSValue valueWithBytes:&value objCType:@encode(CGPoint)]];
 		expect(object.pointValue).to.equal(value);
+	});
+
+	it(@"should work for NSRange", ^{
+		RACSubject *subject = [RACSubject subject];
+		[object rac_liftSelector:@selector(setRangeValue:) withObjects:subject];
+
+		expect(NSEqualRanges(object.rangeValue, NSMakeRange(0, 0))).to.beTruthy();
+
+		NSRange value = NSMakeRange(10, 20);
+		[subject sendNext:[NSValue valueWithRange:value]];
+		expect(NSEqualRanges(object.rangeValue, value)).to.beTruthy();
 	});
 
 	describe(@"the returned signal", ^{
@@ -296,6 +320,24 @@ describe(@"-rac_liftSelector:withObjects:", ^{
 			[subject sendNext:@1];
 
 			expect(result).to.equal(RACUnit.defaultUnit);
+		});
+
+		it(@"should send boxed NSRange", ^{
+			RACSubject *subject = [RACSubject subject];
+			RACSubject *subject2 = [RACSubject subject];
+			RACSignal *signal = [object rac_liftSelector:@selector(returnRangeValueWithObjectValue:andIntegerValue:) withObjects:subject, subject2];
+
+			__block NSValue *result;
+			[signal subscribeNext:^(id x) {
+				result = x;
+			}];
+
+			[subject sendNext:@1];
+			expect(result).to.beNil();
+
+			[subject2 sendNext:@42];
+			expect(@(result.objCType)).to.equal(@(@encode(NSRange)));
+			expect(NSEqualRanges(result.rangeValue, NSMakeRange(1, 42))).to.beTruthy();
 		});
 	});
 });
@@ -402,9 +444,20 @@ describe(@"-rac_liftSelector:withObjectsFromArray:", ^{
 
 		expect(object.charPointerValue).to.equal(NULL);
 
-		const char *string = "blah blah blah";
-		[subject sendNext:@(string)];
-		expect(strcmp(object.charPointerValue, string) == 0).to.beTruthy();
+		NSString *string = @"blah blah blah";
+		[subject sendNext:string];
+		expect(@(object.charPointerValue)).to.equal(string);
+	});
+
+	it(@"should work for const char pointer", ^{
+		RACSubject *subject = [RACSubject subject];
+		[object rac_liftSelector:@selector(setConstCharPointerValue:) withObjectsFromArray:@[ subject ]];
+
+		expect(object.constCharPointerValue).to.equal(NULL);
+
+		NSString *string = @"blah blah blah";
+		[subject sendNext:string];
+		expect(@(object.constCharPointerValue)).to.equal(string);
 	});
 
 	it(@"should work for CGRect", ^{
@@ -414,7 +467,7 @@ describe(@"-rac_liftSelector:withObjectsFromArray:", ^{
 		expect(object.rectValue).to.equal(CGRectZero);
 
 		CGRect value = CGRectMake(10, 20, 30, 40);
-		[subject sendNext:[NSValue valueWithRect:value]];
+		[subject sendNext:[NSValue valueWithBytes:&value objCType:@encode(CGRect)]];
 		expect(object.rectValue).to.equal(value);
 	});
 
@@ -425,7 +478,7 @@ describe(@"-rac_liftSelector:withObjectsFromArray:", ^{
 		expect(object.sizeValue).to.equal(CGSizeZero);
 
 		CGSize value = CGSizeMake(10, 20);
-		[subject sendNext:[NSValue valueWithSize:value]];
+		[subject sendNext:[NSValue valueWithBytes:&value objCType:@encode(CGSize)]];
 		expect(object.sizeValue).to.equal(value);
 	});
 
@@ -436,8 +489,19 @@ describe(@"-rac_liftSelector:withObjectsFromArray:", ^{
 		expect(object.pointValue).to.equal(CGPointZero);
 
 		CGPoint value = CGPointMake(10, 20);
-		[subject sendNext:[NSValue valueWithPoint:value]];
+		[subject sendNext:[NSValue valueWithBytes:&value objCType:@encode(CGPoint)]];
 		expect(object.pointValue).to.equal(value);
+	});
+
+	it(@"should work for NSRange", ^{
+		RACSubject *subject = [RACSubject subject];
+		[object rac_liftSelector:@selector(setRangeValue:) withObjectsFromArray:@[ subject ]];
+
+		expect(NSEqualRanges(object.rangeValue, NSMakeRange(0, 0))).to.beTruthy();
+
+		NSRange value = NSMakeRange(10, 20);
+		[subject sendNext:[NSValue valueWithRange:value]];
+		expect(NSEqualRanges(object.rangeValue, value)).to.beTruthy();
 	});
 
 	it(@"should send the latest value of the signal as the right argument", ^{

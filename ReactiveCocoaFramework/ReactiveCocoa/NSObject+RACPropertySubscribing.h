@@ -20,15 +20,28 @@
 // is deallocated. No intermediate objects along the key path should be
 // deallocated while the observation exists.
 //
+// Make sure to `@strongify(self)` when using this macro within a block! The
+// macro will _always_ reference `self`, which can silently introduce a retain
+// cycle within a block. As a result, you should make sure that `self` is a weak
+// reference (e.g., created by `@weakify` and `@strongify`) before the
+// expression that uses `RACAble` or `RACAbleWithStart`.
+//
 // Examples
 //
-//   // Observes self, and doesn't stop until self is deallocated. The array
-//   // controller should not be deallocated during this time.
-//   RACSignal *signal1 = RACAble(self.arrayController.items);
+//    // Observes self, and doesn't stop until self is deallocated. The array
+//    // controller should not be deallocated during this time.
+//    RACSignal *signal1 = RACAble(self.arrayController.items);
 //
-//   // Observes obj.arrayController, and stops when _self_ or the array
-//   // controller is deallocated.
-//   RACSignal *signal2 = RACAble(obj.arrayController, items);
+//    // Observes obj.arrayController, and stops when _self_ or the array
+//    // controller is deallocated.
+//    RACSignal *signal2 = RACAble(obj.arrayController, items);
+//
+//    @weakify(self);
+//    RACSignal *signal3 = [anotherSignal flattenMap:^(NSArrayController *arrayController) {
+//        // Avoids a retain cycle.
+//        @strongify(self);
+//        return RACAble(arrayController, items);
+//    }];
 //
 // Returns a signal which sends a value every time the value at the given key
 // path changes, and sends completed if self is deallocated (no matter which
@@ -52,14 +65,9 @@
 #define _RACAbleWithStartObject(object, property) [object rac_signalWithStartingValueForKeyPath:@keypath(object, property) observer:self]
 
 @class RACDisposable;
-@class RACCompoundDisposable;
 @class RACSignal;
 
 @interface NSObject (RACPropertySubscribing)
-
-// The compound disposable which will be disposed of when the receiver is
-// deallocated.
-@property (atomic, readonly, strong) RACCompoundDisposable *rac_deallocDisposable;
 
 // Creates a signal to observe the value at the given keypath on the source
 // object.
@@ -94,8 +102,5 @@
 // Keeps the value of the KVC-compliant keypath up-to-date with the latest value
 // sent by the signal.
 - (RACDisposable *)rac_deriveProperty:(NSString *)keyPath from:(RACSignal *)signal;
-
-// Adds a disposable which will be disposed when the receiver deallocs.
-- (void)rac_addDeallocDisposable:(RACDisposable *)disposable;
 
 @end

@@ -52,6 +52,31 @@ extern const NSInteger RACSignalErrorTimedOut;
 // and errors are always forwarded immediately.
 - (RACSignal *)throttle:(NSTimeInterval)interval;
 
+// Throttles `next`s for which `predicate` returns YES.
+//
+// When `predicate` returns YES for a `next`:
+//
+//  1. If another `next` is received before `interval` seconds have passed, the
+//     prior value is discarded. This happens regardless of whether the new
+//     value will be throttled.
+//  2. After `interval` seconds have passed since the value was originally
+//     received, it will be forwarded on the scheduler that it was received
+//     upon. If +[RACScheduler currentScheduler] was nil at the time, a private
+//     background scheduler is used.
+//
+// When `predicate` returns NO for a `next`, it is forwarded immediately,
+// without any throttling.
+//
+// interval  - The number of seconds for which to buffer the latest value that
+//             passes `predicate`.
+// predicate - Passed each `next` from the receiver, this block returns
+//             whether the given value should be throttled. This argument must
+//             not be nil.
+//
+// Returns a signal which sends `next` events, throttled when `predicate`
+// returns YES. Completion and errors are always forwarded immediately.
+- (RACSignal *)throttle:(NSTimeInterval)interval valuesPassingTest:(BOOL (^)(id next))predicate;
+
 // Forwards `next` and `completed` events after delaying for `interval` seconds
 // on the current scheduler (on which the events were delivered).
 //
@@ -81,11 +106,13 @@ extern const NSInteger RACSignalErrorTimedOut;
 // will be a RACTuple of values.
 - (RACSignal *)bufferWithTime:(NSTimeInterval)interval;
 
-// Collect all receiver's `next`s into a NSArray.
+// Collect all receiver's `next`s into a NSArray. nil values will be converted
+// to NSNull.
 //
 // This corresponds to the `ToArray` method in Rx.
 //
-// Returns a signal which sends a single NSArray when the receiver completes.
+// Returns a signal which sends a single NSArray when the receiver completes
+// successfully.
 - (RACSignal *)collect;
 
 // Takes the last `count` `next`s after the receiving signal completes.
@@ -160,7 +187,8 @@ extern const NSInteger RACSignalErrorTimedOut;
 //                 signals.
 - (RACSignal *)flatten:(NSUInteger)maxConcurrent;
 
-// Gets a new signal to subscribe to after the receiver completes.
+// Ignores all `next`s from the receiver, and after the receiver completes, gets
+// a new signal to subscribe to.
 - (RACSignal *)sequenceNext:(RACSignal * (^)(void))block;
 
 // Concats the inner signals of a signal of signals.
@@ -286,6 +314,8 @@ extern const NSInteger RACSignalErrorTimedOut;
 //
 // **This is not the same as the `ToArray` method in Rx.** See -collect for
 // that behavior instead.
+//
+// Returns the array of `next` values, or nil if an error occurs.
 - (NSArray *)toArray;
 
 // Add every `next` to a sequence. Nils are represented by NSNulls.
@@ -337,14 +367,22 @@ extern const NSInteger RACSignalErrorTimedOut;
 // indeterminate scheduler, until the stream finishes or times out.
 - (RACSignal *)timeout:(NSTimeInterval)interval;
 
-// Creates and returns a signal that delivers its callbacks using the given
-// scheduler.
+// Creates and returns a signal that delivers its events on the given scheduler.
+// Any side effects of the receiver will still be performed on the original
+// thread.
+//
+// This is ideal when the signal already performs its work on the desired
+// thread, but you want to handle its events elsewhere.
 //
 // This corresponds to the `ObserveOn` method in Rx.
 - (RACSignal *)deliverOn:(RACScheduler *)scheduler;
 
-// Creates and returns a signal whose `didSubscribe` block is scheduled with the
-// given scheduler.
+// Creates and returns a signal that executes its side effects and delivers its
+// events on the given scheduler.
+//
+// Use of this operator should be avoided whenever possible, because the
+// receiver's side effects may not be safe to run on another thread. If you just
+// want to receive the signal's events on `scheduler`, use -deliverOn: instead.
 - (RACSignal *)subscribeOn:(RACScheduler *)scheduler;
 
 // Creates a shared signal which is passed into the let block. The let block
